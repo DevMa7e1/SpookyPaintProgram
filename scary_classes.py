@@ -3,7 +3,7 @@ from PIL import ImageDraw
 class Brush:
     def __init__(self) -> None:
         pass
-    def draw_point(self, image: ImageDraw.ImageDraw, current: tuple[int, int, float], last: tuple[int, int, float]):
+    def draw_point(self, image: ImageDraw.ImageDraw, color: tuple[int, int, int, int], current: tuple[int, int, float], last: tuple[int, int, float]):
         pass
 
 class Stroke:
