@@ -2,6 +2,7 @@ from PIL import ImageDraw
 
 class Brush:
     def __init__(self) -> None:
+        self.name = 'Default brush name'
         pass
     def draw_point(self, image: ImageDraw.ImageDraw, color: tuple[int, int, int, int], current: tuple[int, int, float], last: tuple[int, int, float]):
         pass

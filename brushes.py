@@ -16,3 +16,5 @@ class HorizontalLineBrush(Brush):
         bottomleft = (current[0], current[1])
         bottomright = (current[0], current[1] + int(current[2]*20))
         image.polygon((topleft, topright, bottomright, bottomleft), fill = color)
+
+available_brushes: list[type] = [VerticalLineBrush, HorizontalLineBrush]
