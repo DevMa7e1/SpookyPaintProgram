@@ -65,7 +65,7 @@ class MainWindow(QMainWindow):
         self.central = DrawArea(self)
         self.mainbox.addWidget(self.central)
 
-        self.current_brush = brushes.VerticalLineBrush()
+        self.current_brush = brushes.RotatingLineBrush()
         self.current_color = (0, 0, 0, 255)
 
         menuwidget = QWidget()
