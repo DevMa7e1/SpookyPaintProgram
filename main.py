@@ -7,6 +7,7 @@ import numpy as np
 import sys
 from scary_classes import *
 import brushes
+from copy import copy
 
 app = QApplication(sys.argv)
 
@@ -25,16 +26,22 @@ class DrawArea(QLabel):
         self.previewdraw = ImageDraw.ImageDraw(self.preview)
         self.setPixmap(toQPixmap(self.image))
         self.stroke = Stroke()
+        self.strokes = []
+        self.undoed = []
 
     def process_stroke(self):
         draw = ImageDraw.ImageDraw(self.image)
+        self.strokes.append((copy(self.stroke.encoded), copy(self.mw.current_color), copy(self.mw.current_brush)))
         if not self.stroke.empty():
             points = self.stroke.decode()
             last = next(points)
             if next(points, (-1, -1, -1)) != (-1, -1, -1):
+                self.undoed.clear()
+                first = True
                 for point in self.stroke.decode():
-                    self.mw.current_brush.draw_point(draw, self.mw.current_color, (point[0], point[1], point[2]/65535), (last[0], last[1], last[2]/65535))
+                    self.mw.current_brush.draw_point(draw, self.mw.current_color, (point[0], point[1], point[2]/65535), (last[0], last[1], last[2]/65535), first)
                     last = point
+                    first = False
             self.setPixmap(toQPixmap(self.image))
         self.stroke.clear()
         self.preview = self.image.copy()
@@ -53,6 +60,60 @@ class DrawArea(QLabel):
                 else:
                     self.process_stroke()
             return super().tabletEvent(a0)
+    def mouseMoveEvent(self, ev: QMouseEvent | None) -> None:
+        if type(ev) == QMouseEvent:
+            if ev.buttons() == Qt.MouseButton.LeftButton:
+                if ev.position().x() > 0 and ev.position().x() < self.draw_space[0] and ev.position().y() > 0 and ev.position().y() < self.draw_space[1]:
+                    self.stroke.add(int(ev.position().x()), int(ev.position().y()), 1)
+                    self.previewdraw.line(((int(ev.position().x()), int(ev.position().y())), (int(ev.position().x()) + 20, int(ev.position().y()))), fill=(100, 100, 100, 255))
+                    self.setPixmap(toQPixmap(self.preview))
+        return super().mouseMoveEvent(ev)
+
+    def undo(self):
+        if len(self.strokes) > 0:
+            self.undoed.append(self.strokes.pop())
+            self.image = Image.fromarray(np.zeros((self.draw_space[1], self.draw_space[0], 4), np.uint8), mode='RGBA')
+            for i in self.strokes:
+                redo = Stroke()
+                redo.encoded = i[0]
+
+                draw = ImageDraw.ImageDraw(self.image)
+                if not redo.empty():
+                    points = redo.decode()
+                    last = next(points)
+                    if next(points, (-1, -1, -1)) != (-1, -1, -1):
+                        first = True
+                        for point in redo.decode():
+                            i[2].draw_point(draw, i[1], (point[0], point[1], point[2]/65535), (last[0], last[1], last[2]/65535), first)
+                            last = point
+                            first = False
+            self.setPixmap(toQPixmap(self.image))
+            self.preview = self.image.copy()
+            self.previewdraw = ImageDraw.ImageDraw(self.preview)
+
+    def redo(self):
+        if len(self.undoed) > 0:
+            self.strokes.append(self.undoed.pop())
+            i = self.strokes[-1]
+            redo = Stroke()
+            redo.encoded = i[0]
+
+            draw = ImageDraw.ImageDraw(self.image)
+            if not redo.empty():
+                points = redo.decode()
+                last = next(points)
+                if next(points, (-1, -1, -1)) != (-1, -1, -1):
+                    first = True
+                    for point in redo.decode():
+                        i[2].draw_point(draw, i[1], (point[0], point[1], point[2]/65535), (last[0], last[1], last[2]/65535), first)
+                        last = point
+                        first = False
+            self.setPixmap(toQPixmap(self.image))
+            self.preview = self.image.copy()
+            self.previewdraw = ImageDraw.ImageDraw(self.preview)
+
+            
+
 
 class MainWindow(QMainWindow):
     def __init__(self, /, parent: QWidget | None = None) -> None:
@@ -65,7 +126,7 @@ class MainWindow(QMainWindow):
         self.central = DrawArea(self)
         self.mainbox.addWidget(self.central)
 
-        self.current_brush = brushes.RotatingLineBrush()
+        self.current_brush = brushes.VerticalLineBrush()
         self.current_color = (0, 0, 0, 255)
 
         menuwidget = QWidget()
@@ -73,6 +134,20 @@ class MainWindow(QMainWindow):
         menubar = QHBoxLayout()
         menubar.setAlignment(Qt.AlignmentFlag.AlignLeft)
         menuwidget.setLayout(menubar)
+
+        undo_action = QPushButton(self)
+        undo_action.setStyleSheet('background-color: #FF7518;')
+        undo_action.setText('Undo')
+        undo_action.setToolTip('Undo the previous stroke')
+        undo_action.pressed.connect(self.central.undo)
+        menubar.addWidget(undo_action)
+
+        redo_action = QPushButton(self)
+        redo_action.setStyleSheet('background-color: #FF7518;')
+        redo_action.setText('Redo')
+        redo_action.setToolTip('Redoes the previously undone stroke')
+        redo_action.pressed.connect(self.central.redo)
+        menubar.addWidget(redo_action)
 
         save_action = QPushButton(self)
         save_action.setStyleSheet('background-color: #FF7518;')
