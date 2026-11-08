@@ -1,5 +1,4 @@
-from scary_classes import Brush
-from PIL import ImageDraw
+from scary_classes import Brush, ImageDraw
 
 class RoundBrush(Brush):
     def draw_point(self, image: ImageDraw.ImageDraw, color: tuple[int, int, int, int], size: int, current: tuple[int, int, float], last: tuple[int, int, float]):
@@ -13,6 +12,27 @@ class RoundBrush(Brush):
                 x = last[0] + (y - last[1]) / (current[1] - last[1]) * (current[0] - last[0])
                 s = (last[2] + (y - last[1]) / (current[1] - last[1]) * (current[2] - last[2])) * size
                 image.circle((x, y), s/2, fill=color)
+
+class FadingBrush(Brush):
+    @staticmethod
+    def easeOutQuint(x: float):
+        return 1 - (1 - x) ** 5
+    def draw_point(self, image: ImageDraw.ImageDraw, color: tuple[int, int, int, int], size: int, current: tuple[int, int, float], last: tuple[int, int, float]):
+        if abs(last[0] - current[0]) > abs(last[1] - current[1]):
+            for x in range(last[0], current[0], 1 - 2 * int(current[0] < last[0])):
+                y = last[1] + (x - last[0]) / (current[0] - last[0]) * (current[1] - last[1])
+                s = (last[2] + (x - last[0]) / (current[0] - last[0]) * (current[2] - last[2])) * size
+                for i in range(int(s), 1, -1):
+                    c = (color[0], color[1], color[2], 10)
+                    print(c)
+                    image.circle((x, y), i/2, fill=c)
+        else:
+            for y in range(last[1], current[1], 1 - 2 * int(current[1] < last[1])):
+                x = last[0] + (y - last[1]) / (current[1] - last[1]) * (current[0] - last[0])
+                s = (last[2] + (y - last[1]) / (current[1] - last[1]) * (current[2] - last[2])) * size
+                for i in range(int(s), 1, -1):
+                    c = (color[0], color[1], color[2], 10)
+                    image.circle((x, y), i/2, fill=c)
 
 class VerticalLineBrush(Brush):
     def draw_point(self, image: ImageDraw.ImageDraw, color: tuple[int, int, int, int], size: int, current: tuple[int, int, float], last: tuple[int, int, float]):
@@ -30,4 +50,4 @@ class HorizontalLineBrush(Brush):
         bottomright = (current[0], current[1] + int(current[2]*size))
         image.polygon((topleft, topright, bottomright, bottomleft), fill = color)
 
-available_brushes: list[type] = [VerticalLineBrush, HorizontalLineBrush, RoundBrush]
+available_brushes: list[type] = [VerticalLineBrush, HorizontalLineBrush, RoundBrush, FadingBrush]

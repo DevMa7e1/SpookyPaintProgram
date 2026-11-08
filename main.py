@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QPixmap, QFont, QFontDatabase
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QLabel, QPushButton, QWidget, QVBoxLayout, QHBoxLayout
 import sys
@@ -10,8 +10,9 @@ class WelcomeScreen(QMainWindow):
     def __init__(self, /, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
+        self.setWindowTitle('Spooky Paint Program')
         mainbox = QVBoxLayout()
-        self.setStyleSheet('background-color: black;')
+        mainbox.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         hfont = QFont(QFontDatabase.applicationFontFamilies( \
         QFontDatabase.addApplicationFont(str(Path(__file__).parent.absolute().joinpath(f'assets/Underdog-Regular.ttf'))))[0])
@@ -33,15 +34,28 @@ class WelcomeScreen(QMainWindow):
         new_drawing.setText('Create a new drawing')
         new_drawing.pressed.connect(self.proceed)
         new_drawing.setStyleSheet('border-radius: 0px; background-color: orange; padding: 4px;')
-        hfont.setPixelSize(16)
+        hfont.setPixelSize(18)
         new_drawing.setFont(hfont)
         new_drawing_box.addWidget(new_drawing)
-        mainbox.addWidget(new_drawing_container)
+        new_drawing_container.setStyleSheet('padding: 0px; margin: 0px;')
+        mainbox.addWidget(new_drawing_container, Qt.AlignmentFlag.AlignTop)
 
+        pumpkin_deco = QLabel()
+        pumpkin_deco.setStyleSheet('')
+        path = str(Path(__file__).parent.absolute().joinpath(f'assets/pumpkin.png'))
+        pumpkin_deco.setPixmap(QPixmap(path).scaled(120, 110))
+        mainbox.addWidget(pumpkin_deco, alignment=Qt.AlignmentFlag.AlignRight)
+
+        path = str(Path(__file__).parent.absolute().joinpath(f'assets/welcome-bg.png'))
         main = QWidget()
         main.setLayout(mainbox)
+        main.setObjectName('bgd')
         self.setCentralWidget(main)
+        main.setStyleSheet(f'#bgd {{border-image: url({path}) 0 0 0 0 stretch stretch;}}')
+        main.setFixedSize(QSize(450, 300))
+
     def proceed(self):
+        self.proceed = lambda: None
         paintwindow = PaintWindow()
         paintwindow.show()
         self.close()

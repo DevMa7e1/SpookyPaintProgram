@@ -9,26 +9,24 @@ import brushes
 from copy import copy
 
 def toQPixmap(img: Image.Image):
-    return QPixmap.fromImage(img.toqimage())
+    return QPixmap.fromImage(img.convert('RGBA').toqimage())
 
 class DrawArea(QLabel):
     def __init__(self, parent: PaintWindow) -> None:
         super().__init__('', parent)
+
         self.draw_space = (700, 500)
         self.setFixedSize(*self.draw_space)
         self.mw = parent
-        self.setStyleSheet('background-color: white;')
 
-        self.image = Image.fromarray(np.zeros((self.draw_space[1], self.draw_space[0], 4), np.uint8), mode='RGBA')
-        self.preview = self.image.copy()
-        self.previewdraw = ImageDraw.ImageDraw(self.preview)
+        self.image = Image.fromarray(np.full((self.draw_space[1], self.draw_space[0], 3), fill_value=(70, 60, 80), dtype=np.uint8), mode='RGB')
         self.setPixmap(toQPixmap(self.image))
         self.stroke = Stroke()
         self.strokes = []
         self.undoed = []
 
     def process_stroke(self):
-        draw = ImageDraw.ImageDraw(self.image)
+        draw = ImageDraw.ImageDraw(self.image, "RGBA")
         self.strokes.append((copy(self.stroke.encoded), copy(self.mw.current_color), copy(self.mw.current_brush), copy(self.mw.current_size)))
         if not self.stroke.empty():
             points = self.stroke.decode()
@@ -46,7 +44,7 @@ class DrawArea(QLabel):
         self.undoed.clear()
 
     def process_in_real_time(self, x: int, y: int, pressure: float):
-        draw = ImageDraw.ImageDraw(self.image)
+        draw = ImageDraw.ImageDraw(self.image, "RGBA")
         if not self.stroke.empty():
             self.mw.current_brush.draw_point(draw, self.mw.current_color, self.mw.current_size, (x, y, pressure), self.stroke.get_last())
             self.stroke.add(x, y, pressure)
@@ -87,7 +85,7 @@ class DrawArea(QLabel):
                 redo = Stroke()
                 redo.encoded = i[0]
 
-                draw = ImageDraw.ImageDraw(self.image)
+                draw = ImageDraw.ImageDraw(self.image, "RGBA")
                 if not redo.empty():
                     points = redo.decode()
                     last = next(points)
@@ -96,8 +94,6 @@ class DrawArea(QLabel):
                             i[2].draw_point(draw, i[1], i[3], (point[0], point[1], point[2]/65535), (last[0], last[1], last[2]/65535))
                             last = point
             self.setPixmap(toQPixmap(self.image))
-            self.preview = self.image.copy()
-            self.previewdraw = ImageDraw.ImageDraw(self.preview)
 
     def redo(self):
         if len(self.undoed) > 0:
@@ -106,7 +102,7 @@ class DrawArea(QLabel):
             redo = Stroke()
             redo.encoded = i[0]
 
-            draw = ImageDraw.ImageDraw(self.image)
+            draw = ImageDraw.ImageDraw(self.image, "RGBA")
             if not redo.empty():
                 points = redo.decode()
                 last = next(points)
@@ -117,8 +113,6 @@ class DrawArea(QLabel):
                         last = point
                         first = False
             self.setPixmap(toQPixmap(self.image))
-            self.preview = self.image.copy()
-            self.previewdraw = ImageDraw.ImageDraw(self.preview)
 
 class PaintWindow(QWidget):
     def __init__(self, /, parent: QWidget | None = None) -> None:
