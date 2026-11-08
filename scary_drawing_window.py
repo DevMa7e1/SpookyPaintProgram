@@ -17,6 +17,7 @@ class DrawArea(QLabel):
         self.draw_space = (700, 500)
         self.setFixedSize(*self.draw_space)
         self.mw = parent
+        self.setStyleSheet('background-color: white;')
 
         self.image = Image.fromarray(np.zeros((self.draw_space[1], self.draw_space[0], 4), np.uint8), mode='RGBA')
         self.preview = self.image.copy()
@@ -34,36 +35,48 @@ class DrawArea(QLabel):
             last = next(points)
             if next(points, (-1, -1, -1)) != (-1, -1, -1):
                 self.undoed.clear()
-                first = True
                 for point in self.stroke.decode():
-                    self.mw.current_brush.draw_point(draw, self.mw.current_color, self.mw.current_size, (point[0], point[1], point[2]/65535), (last[0], last[1], last[2]/65535), first)
+                    self.mw.current_brush.draw_point(draw, self.mw.current_color, self.mw.current_size, (point[0], point[1], point[2]/65535), (last[0], last[1], last[2]/65535))
                     last = point
-                    first = False
             self.setPixmap(toQPixmap(self.image))
+
+    def end_stroke(self):
+        self.strokes.append((copy(self.stroke.encoded), copy(self.mw.current_color), copy(self.mw.current_brush), copy(self.mw.current_size)))
         self.stroke.clear()
-        self.preview = self.image.copy()
-        self.previewdraw = ImageDraw.ImageDraw(self.preview)
+        self.undoed.clear()
+
+    def process_in_real_time(self, x: int, y: int, pressure: float):
+        draw = ImageDraw.ImageDraw(self.image)
+        if not self.stroke.empty():
+            self.mw.current_brush.draw_point(draw, self.mw.current_color, self.mw.current_size, (x, y, pressure), self.stroke.get_last())
+            self.stroke.add(x, y, pressure)
+            self.setPixmap(toQPixmap(self.image))
+        else:
+            self.stroke.add(x, y, pressure)
     
     def mouseReleaseEvent(self, a0: QMouseEvent | None) -> None:
-        self.process_stroke()
-        return super().mouseReleaseEvent(a0)
+        self.end_stroke()
+        if type(a0) == QMouseEvent:
+            return a0.accept()
+        else: 
+            return None
     
     def tabletEvent(self, a0: QTabletEvent | None) -> None:
-            if type(a0) == QTabletEvent:
+        if type(a0) == QTabletEvent:
+            if a0.buttons() == Qt.MouseButton.LeftButton:
                 if a0.position().x() > 0 and a0.position().x() < self.draw_space[0] and a0.position().y() > 0 and a0.position().y() < self.draw_space[1]:
-                    self.stroke.add(int(a0.position().x()), int(a0.position().y()), a0.pressure())
-                    self.previewdraw.line(((int(a0.position().x()), int(a0.position().y())), (int(a0.position().x()) + a0.pressure()*20, int(a0.position().y()))), fill=(100, 100, 100, 255))
-                    self.setPixmap(toQPixmap(self.preview))
-                else:
-                    self.process_stroke()
-            return super().tabletEvent(a0)
+                    self.process_in_real_time(int(a0.position().x()), int(a0.position().y()), a0.pressure())
+                return a0.accept()
+            else:
+                self.end_stroke()
+                return a0.accept()
+        return super().tabletEvent(a0)
+    
     def mouseMoveEvent(self, ev: QMouseEvent | None) -> None:
         if type(ev) == QMouseEvent:
             if ev.buttons() == Qt.MouseButton.LeftButton:
                 if ev.position().x() > 0 and ev.position().x() < self.draw_space[0] and ev.position().y() > 0 and ev.position().y() < self.draw_space[1]:
-                    self.stroke.add(int(ev.position().x()), int(ev.position().y()), 1)
-                    self.previewdraw.line(((int(ev.position().x()), int(ev.position().y())), (int(ev.position().x()) + 20, int(ev.position().y()))), fill=(100, 100, 100, 255))
-                    self.setPixmap(toQPixmap(self.preview))
+                    self.process_in_real_time(int(ev.position().x()), int(ev.position().y()), 1)
         return super().mouseMoveEvent(ev)
 
     def undo(self):
@@ -79,11 +92,9 @@ class DrawArea(QLabel):
                     points = redo.decode()
                     last = next(points)
                     if next(points, (-1, -1, -1)) != (-1, -1, -1):
-                        first = True
                         for point in redo.decode():
-                            i[2].draw_point(draw, i[1], i[3], (point[0], point[1], point[2]/65535), (last[0], last[1], last[2]/65535), first)
+                            i[2].draw_point(draw, i[1], i[3], (point[0], point[1], point[2]/65535), (last[0], last[1], last[2]/65535))
                             last = point
-                            first = False
             self.setPixmap(toQPixmap(self.image))
             self.preview = self.image.copy()
             self.previewdraw = ImageDraw.ImageDraw(self.preview)
@@ -102,7 +113,7 @@ class DrawArea(QLabel):
                 if next(points, (-1, -1, -1)) != (-1, -1, -1):
                     first = True
                     for point in redo.decode():
-                        i[2].draw_point(draw, i[1], i[3], (point[0], point[1], point[2]/65535), (last[0], last[1], last[2]/65535), first)
+                        i[2].draw_point(draw, i[1], i[3], (point[0], point[1], point[2]/65535), (last[0], last[1], last[2]/65535))
                         last = point
                         first = False
             self.setPixmap(toQPixmap(self.image))
@@ -123,9 +134,10 @@ class PaintWindow(QWidget):
 
         self.current_brush = brushes.VerticalLineBrush()
         self.current_color = (0, 0, 0, 255)
+        self.current_size = 20
 
         menuwidget = QWidget()
-        menuwidget.setStyleSheet('background-color: #FFC568') ##1A0A00;')
+        menuwidget.setStyleSheet('background-color: #FFC568')
         menubar = QHBoxLayout()
         menubar.setAlignment(Qt.AlignmentFlag.AlignLeft)
         menuwidget.setLayout(menubar)

@@ -4,7 +4,7 @@ class Brush:
     def __init__(self) -> None:
         self.name = 'Default brush name'
         pass
-    def draw_point(self, image: ImageDraw.ImageDraw, color: tuple[int, int, int, int], size: int, current: tuple[int, int, float], last: tuple[int, int, float], first: bool = True):
+    def draw_point(self, image: ImageDraw.ImageDraw, color: tuple[int, int, int, int], size: int, current: tuple[int, int, float], last: tuple[int, int, float]):
         pass
 
 class Stroke:
@@ -23,5 +23,7 @@ class Stroke:
         if len(self.encoded) > 0:
             return False
         return True
+    def get_last(self):
+        return (int.from_bytes(self.encoded[len(self.encoded)-6:len(self.encoded)-4], 'big'), int.from_bytes(self.encoded[len(self.encoded)-4:len(self.encoded)-2], 'big'), int.from_bytes(self.encoded[len(self.encoded)-2:], 'big')/65535)
     def clear(self):
         self.encoded = bytes()
