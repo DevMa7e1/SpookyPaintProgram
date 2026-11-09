@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QMouseEvent, QTabletEvent, QPixmap
+from PyQt6.QtGui import QMouseEvent, QTabletEvent, QPixmap, QFont, QFontDatabase
 from PyQt6.QtWidgets import QWidget, QLabel, QFileDialog, QColorDialog, \
 QPushButton, QWidget, QHBoxLayout, QVBoxLayout, QComboBox, QSpinBox
 from PIL import Image, ImageDraw
@@ -7,6 +7,7 @@ import numpy as np
 from scary_classes import *
 import brushes
 from copy import copy
+from pathlib import Path
 
 def toQPixmap(img: Image.Image):
     return QPixmap.fromImage(img.convert('RGBA').toqimage())
@@ -80,7 +81,7 @@ class DrawArea(QLabel):
     def undo(self):
         if len(self.strokes) > 0:
             self.undoed.append(self.strokes.pop())
-            self.image = Image.fromarray(np.zeros((self.draw_space[1], self.draw_space[0], 4), np.uint8), mode='RGBA')
+            self.image = Image.fromarray(np.full((self.draw_space[1], self.draw_space[0], 3), fill_value=(70, 60, 80), dtype=np.uint8), mode='RGB')
             for i in self.strokes:
                 redo = Stroke()
                 redo.encoded = i[0]
@@ -120,13 +121,15 @@ class PaintWindow(QWidget):
         self.setWindowTitle('Spooky Paint Program')
 
         self.setStyleSheet('background-color: #AAAAAA')
+        self.columnbox = QHBoxLayout()
+        self.columnbox.setContentsMargins(0, 0, 0, 0)
         self.mainbox = QVBoxLayout()
         self.mainbox.setContentsMargins(0, 0, 0, 0)
 
         self.central = DrawArea(self)
         self.mainbox.addWidget(self.central)
 
-        self.current_brush = brushes.VerticalLineBrush()
+        self.current_brush = brushes.RoundBrush()
         self.current_color = (0, 0, 0, 255)
         self.current_size = 20
 
@@ -153,18 +156,52 @@ class PaintWindow(QWidget):
         save_action = QPushButton(self)
         save_action.setStyleSheet('background-color: #FF7518;')
         save_action.setText('Save')
-        save_action.setToolTip('Save the current drawing to a picture file')
+        save_action.setToolTip('Save the current drawing to an image file')
         save_action.pressed.connect(self.save)
         menubar.addWidget(save_action)
 
-        color_action = QPushButton(self)
-        color_action.setStyleSheet('background-color: #FF7518;')
-        color_action.setText('Set color')
-        color_action.setToolTip('Set the color of the brush')
-        color_action.pressed.connect(self.select_color)
-        menubar.addWidget(color_action)
+        self.mainbox.addWidget(menuwidget)
+        maincontainer = QWidget()
+        maincontainer.setLayout(self.mainbox)
+        self.columnbox.addWidget(maincontainer)
+
+        hfont = QFont(QFontDatabase.applicationFontFamilies( \
+        QFontDatabase.addApplicationFont(str(Path(__file__).parent.absolute().joinpath(f'assets/Underdog-Regular.ttf'))))[0])
+        hfont.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+        hfont.setStyleStrategy(QFont.StyleStrategy.NoAntialias)
+
+        brushbox2 = QVBoxLayout()
+
+        brushcontainer = QWidget()
+        brushbox = QVBoxLayout()
+        brushcontainer.setLayout(brushbox)
+        brushbox2.setAlignment(Qt.AlignmentFlag.AlignTop)
+        brushbox.setAlignment(Qt.AlignmentFlag.AlignTop)
+        brushbox2.addWidget(brushcontainer)
+
+        brushopt = QLabel()
+        brushopt.setText('Brush Options')
+        hfont.setPixelSize(24)
+        brushopt.setFont(hfont)
+        brushbox.addWidget(brushopt)
+
+        self.brush_preview = QLabel()
+        self.brushpimage = Image.fromarray(np.full((100, 100, 3), fill_value=(70, 60, 80), dtype=np.uint8), mode='RGB')
+        self.current_brush.draw_point(ImageDraw.ImageDraw(self.brushpimage, 'RGBA'), self.current_color, self.current_size, (20, 20, 1), (70, 70, 1))
+        self.brush_preview.setPixmap(toQPixmap(self.brushpimage))
+        brushbox.addWidget(self.brush_preview, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        self.brush_select = QComboBox()
+        self.brush_select.setStyleSheet('background-color: #FF7518;')
+        for i in brushes.available_brushes:
+            self.brush_select.addItem(i.name, userData=i)
+        self.brush_select.currentIndexChanged.connect(self.change_brush)
+        hfont.setPixelSize(16)
+        self.brush_select.setFont(hfont)
+        brushbox.addWidget(self.brush_select)
 
         size_container = QWidget()
+        size_container.setContentsMargins(8, 0, 8, 0)
         size_box = QHBoxLayout()
         pixel_size = QSpinBox()
         pixel_size.setMaximum(500)
@@ -173,26 +210,48 @@ class PaintWindow(QWidget):
         self.psize = pixel_size
         pixel_label = QLabel()
         pixel_label.setText('Brush size (px): ')
+        hfont.setPixelSize(16)
+        pixel_label.setFont(hfont)
         size_box.addWidget(pixel_label)
         size_box.addWidget(pixel_size)
         size_container.setLayout(size_box)
-        menubar.addWidget(size_container)
+        brushbox.addWidget(size_container)
 
-        self.brush_select = QComboBox()
-        self.brush_select.setStyleSheet('background-color: #FF7518;')
-        for i in brushes.available_brushes:
-            self.brush_select.addItem(i.__name__, userData=i)
-        self.brush_select.currentIndexChanged.connect(self.change_brush)
-        menubar.addWidget(self.brush_select)
+        color_action = QPushButton(self)
+        color_action.setStyleSheet('margin: 8px')
+        color_action.setStyleSheet('background-color: #FF7518;')
+        color_action.setText('Set color')
+        hfont.setPixelSize(16)
+        color_action.setFont(hfont)
+        color_action.setToolTip('Set the color of the brush')
+        color_action.pressed.connect(self.select_color)
+        brushbox.addWidget(color_action)
 
-        self.mainbox.addWidget(menuwidget)
-        self.setLayout(self.mainbox)
+        brushbox2.addStretch()
+        brushbox2.setContentsMargins(0, 0, 0, 0)
+        cobweb_deco = QLabel()
+        path = str(Path(__file__).parent.absolute().joinpath(f'assets/cobweb.png'))
+        cobweb_deco.setPixmap(QPixmap(path).scaled(120, 120))
+        brushbox2.addWidget(cobweb_deco, alignment=Qt.AlignmentFlag.AlignRight)
+
+        actualbrushcontainer = QWidget()
+        actualbrushcontainer.setLayout(brushbox2)
+        actualbrushcontainer.setStyleSheet('background-color: #665566;')
+
+        self.columnbox.addWidget(actualbrushcontainer)
+        self.setLayout(self.columnbox)
 
     def change_size(self):
         self.current_size = self.psize.value()
+        self.brushpimage = Image.fromarray(np.full((100, 100, 3), fill_value=(70, 60, 80), dtype=np.uint8), mode='RGB')
+        self.current_brush.draw_point(ImageDraw.ImageDraw(self.brushpimage, 'RGBA'), self.current_color, self.current_size, (20, 20, 1), (70, 70, 1))
+        self.brush_preview.setPixmap(toQPixmap(self.brushpimage))
 
     def change_brush(self):
         self.current_brush = self.brush_select.itemData(self.brush_select.currentIndex())()
+        self.brushpimage = Image.fromarray(np.full((100, 100, 3), fill_value=(70, 60, 80), dtype=np.uint8), mode='RGB')
+        self.current_brush.draw_point(ImageDraw.ImageDraw(self.brushpimage, 'RGBA'), self.current_color, self.current_size, (20, 20, 1), (70, 70, 1))
+        self.brush_preview.setPixmap(toQPixmap(self.brushpimage))
     
     def save(self):
         self.filediag = QFileDialog(self, 'Save drawing', filter='PNG Image (*.png)')
@@ -212,3 +271,7 @@ class PaintWindow(QWidget):
         color = self.cdiag.getColor()
         if color.isValid():
             self.current_color = (color.toRgb().red(), color.toRgb().green(), color.toRgb().blue(), 255)
+            self.current_brush = self.brush_select.itemData(self.brush_select.currentIndex())()
+            self.brushpimage = Image.fromarray(np.full((100, 100, 3), fill_value=(70, 60, 80), dtype=np.uint8), mode='RGB')
+            self.current_brush.draw_point(ImageDraw.ImageDraw(self.brushpimage, 'RGBA'), self.current_color, self.current_size, (20, 20, 1), (70, 70, 1))
+            self.brush_preview.setPixmap(toQPixmap(self.brushpimage))
