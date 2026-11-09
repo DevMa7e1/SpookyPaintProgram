@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QPixmap, QFont, QFontDatabase
+from PyQt6.QtGui import QPixmap, QFont, QFontDatabase, QIcon
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QLabel, QPushButton, QWidget, QVBoxLayout, QHBoxLayout
 import sys
 from scary_classes import *
@@ -11,6 +11,7 @@ class WelcomeScreen(QMainWindow):
         super().__init__(parent)
 
         self.setWindowTitle('Spooky Paint Program')
+        self.setWindowIcon(QIcon(str(Path(__file__).parent.absolute().joinpath(f'assets/pumpkin.png'))))
         mainbox = QVBoxLayout()
         mainbox.setAlignment(Qt.AlignmentFlag.AlignTop)
 
@@ -33,6 +34,7 @@ class WelcomeScreen(QMainWindow):
         new_drawing = QPushButton(self)
         new_drawing.setText('Create a new drawing')
         new_drawing.pressed.connect(self.proceed)
+        self.newd = new_drawing
         new_drawing.setStyleSheet('border-radius: 0px; background-color: orange; padding: 4px;')
         hfont.setPixelSize(18)
         new_drawing.setFont(hfont)
@@ -46,7 +48,7 @@ class WelcomeScreen(QMainWindow):
         pumpkin_deco.setPixmap(QPixmap(path).scaled(120, 110))
         mainbox.addWidget(pumpkin_deco, alignment=Qt.AlignmentFlag.AlignRight)
 
-        path = str(Path(__file__).parent.absolute().joinpath(f'assets/welcome-bg.png'))
+        path = str(Path(__file__).parent.absolute().joinpath(f'assets/welcome-bg.png').as_posix())
         main = QWidget()
         main.setLayout(mainbox)
         main.setObjectName('bgd')
@@ -55,7 +57,7 @@ class WelcomeScreen(QMainWindow):
         main.setFixedSize(QSize(450, 300))
 
     def proceed(self):
-        self.proceed = lambda: None
+        self.newd.pressed.disconnect()
         paintwindow = PaintWindow()
         paintwindow.show()
         self.close()

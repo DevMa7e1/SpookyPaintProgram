@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QMouseEvent, QTabletEvent, QPixmap, QFont, QFontDatabase
+from PyQt6.QtGui import QMouseEvent, QTabletEvent, QPixmap, QFont, QFontDatabase, QIcon
 from PyQt6.QtWidgets import QWidget, QLabel, QFileDialog, QColorDialog, \
 QPushButton, QWidget, QHBoxLayout, QVBoxLayout, QComboBox, QSpinBox
 from PIL import Image, ImageDraw
@@ -119,6 +119,7 @@ class PaintWindow(QWidget):
     def __init__(self, /, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle('Spooky Paint Program')
+        self.setWindowIcon(QIcon(str(Path(__file__).parent.absolute().joinpath(f'assets/pumpkin.png'))))
 
         self.setStyleSheet('background-color: #AAAAAA')
         self.columnbox = QHBoxLayout()
@@ -229,10 +230,11 @@ class PaintWindow(QWidget):
 
         brushbox2.addStretch()
         brushbox2.setContentsMargins(0, 0, 0, 0)
-        cobweb_deco = QLabel()
-        path = str(Path(__file__).parent.absolute().joinpath(f'assets/cobweb.png'))
-        cobweb_deco.setPixmap(QPixmap(path).scaled(120, 120))
-        brushbox2.addWidget(cobweb_deco, alignment=Qt.AlignmentFlag.AlignRight)
+
+        face_deco = QLabel()
+        path = str(Path(__file__).parent.absolute().joinpath(f'assets/scary-face.png'))
+        face_deco.setPixmap(QPixmap(path).scaled(280, 250))
+        brushbox2.addWidget(face_deco)
 
         actualbrushcontainer = QWidget()
         actualbrushcontainer.setLayout(brushbox2)
